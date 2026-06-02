@@ -92,7 +92,7 @@ set_objectdir("$(builddir)/.objs")
 
 set_policy("build.across_targets_in_parallel", false)
 
-add_includedirs(luatos.."components/multimedia/")
+-- add_includedirs(luatos.."components/multimedia/")
 add_includedirs("app/port",{public = true})
 
 add_includedirs("include",{public = true})
@@ -157,7 +157,7 @@ target("app")
     remove_files("src/app/btapp/**.c")
 
     add_includedirs(os.dirs(path.join(os.scriptdir(),"src/app/**")))
-    add_includedirs(os.dirs(path.join(os.scriptdir(),"src/bt/blehost/**")))
+    -- add_includedirs(os.dirs(path.join(os.scriptdir(),"src/bt/blehost/**")))
 
 
 target_end()
@@ -183,35 +183,36 @@ target("wmarch")
 
 target_end()
 
-target("blehost")
-    set_kind("static")
-    set_plat("cross")
-    set_arch("c-sky")
-
-    add_files("src/bt/blehost/**.c")
-    add_includedirs(os.dirs(path.join(os.scriptdir(),"src/bt/blehost/**")))
-    
-    add_includedirs("app/port",{public = true})
-    add_includedirs(luatos.."lua/include",{public = true})
-    add_includedirs(luatos.."luat/include",{public = true})
-
-    add_includedirs("src/app/bleapp",{public = true})
-    add_includedirs("src/os/rtos/include",{public = true})
-    add_includedirs("include",{public = true})
-    add_includedirs("include/bt",{public = true})
-    add_includedirs("include/platform",{public = true})
-    add_includedirs("include/os",{public = true})
-    add_includedirs("include/arch/xt804",{public = true})
-    add_includedirs("include/arch/xt804/csi_core",{public = true})
-
-    remove_files("src/app/bleapp/wm_ble_server_wifi_app.c")
-
-target_end()
+-- target("blehost")
+--     set_kind("static")
+--     set_plat("cross")
+--     set_arch("c-sky")
+--
+--     add_files("src/bt/blehost/**.c")
+--     add_includedirs(os.dirs(path.join(os.scriptdir(),"src/bt/blehost/**")))
+--     
+--     add_includedirs("app/port",{public = true})
+--     add_includedirs(luatos.."lua/include",{public = true})
+--     add_includedirs(luatos.."luat/include",{public = true})
+--
+--     add_includedirs("src/app/bleapp",{public = true})
+--     add_includedirs("src/os/rtos/include",{public = true})
+--     add_includedirs("include",{public = true})
+--     add_includedirs("include/bt",{public = true})
+--     add_includedirs("include/platform",{public = true})
+--     add_includedirs("include/os",{public = true})
+--     add_includedirs("include/arch/xt804",{public = true})
+--     add_includedirs("include/arch/xt804/csi_core",{public = true})
+--
+--     remove_files("src/app/bleapp/wm_ble_server_wifi_app.c")
+--
+-- target_end()
 
 target("hzfont")
     set_kind("static")
     set_plat("cross")
     set_arch("c-sky")
+    set_default(false)
 
     add_includedirs("app/port",{public = true})
     add_includedirs("include",{public = true})
@@ -231,8 +232,6 @@ target("u8g2")
     set_kind("static")
     set_plat("cross")
     set_arch("c-sky")
-
-    add_deps("hzfont")
 
     add_files(luatos.."components/u8g2/*.c")
 
@@ -282,8 +281,6 @@ target("eink")
     set_plat("cross")
     set_arch("c-sky")
 
-    add_deps("hzfont")
-
 
     add_files(luatos.."components/eink/*.c")
     add_files(luatos.."components/epaper/*.c")
@@ -301,37 +298,37 @@ target("eink")
     set_targetdir("$(builddir)/lib")
 target_end()
 
-target("audio")
-    set_kind("static")
-    set_plat("cross")
-    set_arch("c-sky")
-
-    add_includedirs("app/port")
-    add_includedirs("include")
-    add_includedirs(luatos.."lua/include")
-    add_includedirs(luatos.."luat/include")
-    add_includedirs(luatos.."components/common",{public = true})
-
-    add_includedirs(luatos.."components/multimedia/")
-    add_includedirs(luatos.."components/multimedia/mp3_decode")
-    add_includedirs(luatos.."components/multimedia/amr_decode/amr_common/dec/include")
-    add_includedirs(luatos.."components/multimedia/amr_decode/amr_nb/common/include")
-    add_includedirs(luatos.."components/multimedia/amr_decode/amr_nb/dec/include")
-    add_includedirs(luatos.."components/multimedia/amr_decode/amr_wb/dec/include")
-    add_includedirs(luatos.."components/multimedia/amr_decode/opencore-amrnb")
-    add_includedirs(luatos.."components/multimedia/amr_decode/opencore-amrwb")
-    add_includedirs(luatos.."components/multimedia/amr_decode/oscl")
-    add_includedirs(luatos.."components/multimedia/amr_decode/amr_nb/enc/src")
-    add_includedirs(luatos.."components/multimedia/vtool/include")
-    add_includedirs(luatos.."components/multimedia/audio/include")
-    add_includedirs(luatos.."components/common_api/include")
-    add_files(luatos.."components/multimedia/**.c")
-
-    -- exclude all opus files
-    remove_files(luatos.."components/multimedia/opus/**.c")
-
-    set_targetdir("$(builddir)/lib")
-target_end()
+-- target("audio")
+--     set_kind("static")
+--     set_plat("cross")
+--     set_arch("c-sky")
+--
+--     add_includedirs("app/port")
+--     add_includedirs("include")
+--     add_includedirs(luatos.."lua/include")
+--     add_includedirs(luatos.."luat/include")
+--     add_includedirs(luatos.."components/common",{public = true})
+--
+--     add_includedirs(luatos.."components/multimedia/")
+--     add_includedirs(luatos.."components/multimedia/mp3_decode")
+--     add_includedirs(luatos.."components/multimedia/amr_decode/amr_common/dec/include")
+--     add_includedirs(luatos.."components/multimedia/amr_decode/amr_nb/common/include")
+--     add_includedirs(luatos.."components/multimedia/amr_decode/amr_nb/dec/include")
+--     add_includedirs(luatos.."components/multimedia/amr_decode/amr_wb/dec/include")
+--     add_includedirs(luatos.."components/multimedia/amr_decode/opencore-amrnb")
+--     add_includedirs(luatos.."components/multimedia/amr_decode/opencore-amrwb")
+--     add_includedirs(luatos.."components/multimedia/amr_decode/oscl")
+--     add_includedirs(luatos.."components/multimedia/amr_decode/amr_nb/enc/src")
+--     add_includedirs(luatos.."components/multimedia/vtool/include")
+--     add_includedirs(luatos.."components/multimedia/audio/include")
+--     add_includedirs(luatos.."components/common_api/include")
+--     add_files(luatos.."components/multimedia/**.c")
+--
+--     -- exclude all opus files
+--     remove_files(luatos.."components/multimedia/opus/**.c")
+--
+--     set_targetdir("$(builddir)/lib")
+-- target_end()
 
 target("network")
     set_kind("static")
@@ -479,8 +476,8 @@ target("airui")
     set_kind("static")
     set_plat("cross")
     set_arch("c-sky")
+    set_default(false)
 
-    add_deps("hzfont")
 
     add_includedirs("app/port")
     add_includedirs("include")
@@ -527,6 +524,10 @@ target("airui")
     add_includedirs(luatos_root.."/components/airui/src")
     add_files(luatos_root.."/components/airui/src/**/*.c")
     
+    -- 排除多媒体相关文件（NES、Video等）
+    remove_files(luatos_root.."/components/airui/src/components/widgets/luat_airui_nes.c")
+    remove_files(luatos_root.."/components/airui/src/components/widgets/luat_airui_video.c")
+    
     -- 3. Lua 绑定层（binding，不在 src 目录下，需单独处理）
     add_includedirs(luatos_root.."/components/airui/binding")
     add_files(luatos_root.."/components/airui/binding/*.c")
@@ -568,17 +569,15 @@ target("air10x")
 
     add_deps("app")
     -- add_deps("wmarch")
-    add_deps("blehost")
+    -- add_deps("blehost")
     add_deps("u8g2")
     add_deps("eink")
     add_deps("network")
     -- add_deps("opus131")
     -- add_deps("nes")
-    add_deps("audio")
-    add_deps("hzfont")
+    -- add_deps("audio")
     -- add_deps("luatfonts")
     add_deps("mbedtls")
-    add_deps("airui")
     -- add files
     add_files("app/*.c")
     add_files("app/port/*.c")
@@ -589,6 +588,7 @@ target("air10x")
     add_files("src/os/**.S")
     add_files("platform/common/**.c")
     remove_files("app/port/luat_spi_slave_air101.c")
+    remove_files("app/port/luat_audio_air101.c")
 
 
     add_files(luatos.."lua/src/*.c")

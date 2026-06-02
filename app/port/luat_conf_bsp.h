@@ -115,10 +115,10 @@
 // #define LUAT_USE_TLSF 1
 
 // 音频相关
-#define LUAT_USE_I2S 1
-#define LUAT_USE_MEDIA  1
-#define LUAT_USE_AUDIO_G711 1
-#define LUAT_SUPPORT_AMR 1
+// #define LUAT_USE_I2S 1
+// #define LUAT_USE_MEDIA  1
+// #define LUAT_USE_AUDIO_G711 1
+// #define LUAT_SUPPORT_AMR 1
 
 //---------------SDIO-FATFS特别配置
 // sdio库对接的是fatfs
@@ -129,7 +129,6 @@
 
 // #define LUAT_USE_YMODEM 1
 
-//----------------------------
 // 高级功能, 推荐使用REPL, 因为SHELL已废弃
 // #define LUAT_USE_SHELL 1
 // #define LUAT_USE_DBG
@@ -183,11 +182,11 @@
 #define LUAT_USE_PSRAM_PORT 0
 #define LUAT_USE_PSRAM_2M 1
 
-#define LUAT_USE_AIRUI 1
-#define LUAT_USE_AIRUI_LUATOS 1
-#define LUAT_USE_PINYIN 1
-#define LUAT_USE_HZFONT 1
-#define LUAT_USE_AIRUI_MISANS_FONT_16 1
+// #define LUAT_USE_AIRUI 1
+// #define LUAT_USE_AIRUI_LUATOS 1
+// #define LUAT_USE_PINYIN 1
+// #define LUAT_USE_HZFONT 1
+// #define LUAT_USE_AIRUI_MISANS_FONT_16 1
 
 #define LV_HOR_RES_MAX          (480)
 #define LV_VER_RES_MAX          (480)
