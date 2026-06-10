@@ -52,51 +52,49 @@ int luat_gpio_irq_default(int pin, void* args) {
 }
 
 void UserMain(void) {
-    LLOGD("AIR6010 UserMain start");
+    LLOGI("=== AIR6010 spislave boot ===");
 
-    // 1. tick64 (供 luat_mcu_tick64_ms 使用)
+    LLOGD("[1/7] tick64_init...");
     luat_mcu_tick64_init();
+    LLOGD("[1/7] tick64_init done");
 
-    // 2. 更新文件系统地址 (即使无 script 区, 也要让 KV 等分区地址生效)
+    LLOGD("[2/7] fs_update_addr...");
     luat_fs_update_addr();
+    LLOGD("[2/7] fs_update_addr done: kv=0x%x/%dK", kv_addr, kv_size_kb);
 
-    // 3. 堆初始化 (LuatOS 内存管理)
+    LLOGD("[3/7] heap_init...");
     luat_heap_init();
+    LLOGD("[3/7] heap_init done");
 
-    // 4. 注册 netdrv (xt804 lwip 适配, airlink 通过 ulwip 挂载)
-    luat_netdrv_register_xt804();
+    // WLAN init crashes; skip for now, verify airlink basics first
+    // TODO: debug luat_wlan_init, call it lazily via airlink exec wlan
+    LLOGD("[4/7] wlan_init SKIPPED (crash, debug later)");
 
-    // 5. 配置 airlink SPI (xt804 HSPI 从机模式)
-    //    默认引脚 (cs=8, rdy=22, irq=255) 由 luat_airlink_spi_slave_task.c:144-163 内部补全
-    g_airlink_spi_conf.spi_id = HSPI_INTERFACE_SPI;  // 2
-    g_airlink_spi_conf.master = 0;                    // 0 = 从机
-    g_airlink_spi_conf.speed = 60000000;              // 60MHz, 与 BSP 默认一致
-    LLOGI("airlink spi conf: id=%d master=%d speed=%d cs=%d rdy=%d irq=%d",
-          g_airlink_spi_conf.spi_id, g_airlink_spi_conf.master, g_airlink_spi_conf.speed,
-          g_airlink_spi_conf.cs_pin, g_airlink_spi_conf.rdy_pin, g_airlink_spi_conf.irq_pin);
+    LLOGD("[5/7] netdrv_register SKIPPED");
 
-    // 6. 初始化 airlink 协议栈
-    if (luat_airlink_init() != 0) {
+    LLOGD("[6/7] airlink_init...");
+    int ret = luat_airlink_init();
+    LLOGD("[6/7] airlink_init ret=%d", ret);
+    if (ret != 0) {
         LLOGE("airlink init failed");
     }
 
-    // 7. 启动 SPI slave 模式 (id=0 = LUAT_AIRLINK_MODE_SPI_SLAVE)
-    //     内部会创建 spi_slave_task 并启动 HSPI 控制器
-    if (luat_airlink_start(LUAT_AIRLINK_MODE_SPI_SLAVE) != 0) {
-        LLOGE("airlink start SPI slave failed");
-    }
+    g_airlink_spi_conf.spi_id = HSPI_INTERFACE_SPI;
+    g_airlink_spi_conf.master = 0;
+    g_airlink_spi_conf.speed = 60000000;
+    LLOGD("[7/7] airlink_start SPI slave (id=%d cs=%d rdy=%d)...",
+          g_airlink_spi_conf.spi_id, g_airlink_spi_conf.cs_pin, g_airlink_spi_conf.rdy_pin);
+    ret = luat_airlink_start(LUAT_AIRLINK_MODE_SPI_SLAVE);
+    LLOGD("[7/7] airlink_start SPI slave ret=%d", ret);
 
-    // 8. 启动 UART 模式 (id=2 = LUAT_AIRLINK_MODE_UART)
-    //     用于 host 通过串口与 spislave 通讯
-    #ifdef LUAT_USE_AIRLINK_UART
-    if (luat_airlink_start(LUAT_AIRLINK_MODE_UART) != 0) {
-        LLOGE("airlink start UART failed");
-    }
-    #endif
+#ifdef LUAT_USE_AIRLINK_UART
+    LLOGD("[+UART] airlink_start UART...");
+    ret = luat_airlink_start(LUAT_AIRLINK_MODE_UART);
+    LLOGD("[+UART] airlink_start UART ret=%d", ret);
+#endif
 
-    LLOGI("AIR6010 UserMain done, entering idle");
+    LLOGI("=== boot done, entering idle ===");
 
-    // 9. 主任务阻塞
     while (1) {
         vTaskDelay(10000 / portTICK_PERIOD_MS);
     }

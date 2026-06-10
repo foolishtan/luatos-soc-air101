@@ -12,7 +12,7 @@
         "file" : "AIR6010.fls",
         "fs" : {
             "kv" : {
-                "offset" : "0x081E0000",
+                "offset" : "0x080E0000",
                 "size" : 64,
                 "type" : "fskv"
             }
@@ -34,8 +34,8 @@
     },
     "download" : {
         "core_addr" : "0x08000000",
-        "app_addr"  : "0x080D0000",
-        "kv_addr"   : "0x081E0000",
+        "app_addr"  : "0x08060000",
+        "kv_addr"   : "0x080E0000",
         "user_addr" : "0x00000000",
         "ota_addr"  : "0x08010000",
         "force_br"  : "2M"

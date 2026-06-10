@@ -901,6 +901,12 @@ target("air10x")
     end)
 target_end()
 
+-- ============================================================================
+-- 子项目: AIR6010 SPI slave (airlink 协处理器)
+-- 独立 xmake.lua, 不继承主项目的全局宏/include 路径, 避免污染 air10x
+-- ============================================================================
+includes("project/spislave", {inherit = false})
+
 
 -- Custom task: generate function dependency tree HTML from linker map file
 task("maptree")

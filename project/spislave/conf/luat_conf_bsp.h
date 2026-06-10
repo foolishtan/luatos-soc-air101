@@ -21,6 +21,7 @@
 #define LUAT_USE_PM 1
 #define LUAT_USE_MCU 1
 #define LUAT_USE_OTP 1
+#define LUAT_USE_UART 1
 // 不需要: I2C, ADC, PWM, LCDSEG, TOUCHKEY, SDIO
 //  => 都未 #define, 代码中 #ifdef 块会被剔除
 
@@ -31,16 +32,24 @@
 #define LUAT_USE_NETDRV 1
 #define LUAT_USE_LWIP 1
 #define LUAT_USE_WLAN 1           // WLAN 功能 (airlink-wlan 命令需要)
+#define LUAT_USE_HMETA 1   // airlink devinfo 需要 hmeta 提供设备元数据
 
 //------------------------------------------------------
 // airlink 通信通道: SPI slave + UART
 //------------------------------------------------------
 #define LUAT_USE_AIRLINK 1
 #define LUAT_USE_AIRLINK_SPI_SLAVE 1
-#define LUAT_USE_SPI_SLAVE 1
+#define LUAT_USE_AIRLINK_EXEC_GPIO 1
+#define LUAT_USE_AIRLINK_EXEC_UART 1
+// #define LUAT_USE_AIRLINK_EXEC_SDATA 1
+#define LUAT_USE_AIRLINK_EXEC_PM 1
+#define LUAT_USE_AIRLINK_EXEC_WLAN 1
+#define LUAT_USE_AIRLINK_EXEC_FOTA 1
+#define LUAT_USE_AIRLINK_EXEC_PING 1
+#define LUAT_CONF_AIRLINK_SLAVE_AUTOSTART 1
+#define LUAT_USE_AIRLINK_SPI_SLAVE 1
 #define LUAT_USE_AIRLINK_UART 1
-#define LUAT_USE_AIRLINK_GPIO 1
-#define LUAT_USE_HMETA 1   // airlink devinfo 需要 hmeta 提供设备元数据
+
 
 //------------------------------------------------------
 // FOTA 升级 (通过 airlink FOTA 命令从 host 接收)
@@ -86,8 +95,6 @@
 #undef LUAT_USE_REPL
 #undef LUAT_USE_OTA
 #undef LUAT_CONF_VM_64bit
-#undef LUAT_USE_AIRUI
-#undef LUAT_USE_PINYIN
 
 //------------------------------------------------------
 // 内存优化选项

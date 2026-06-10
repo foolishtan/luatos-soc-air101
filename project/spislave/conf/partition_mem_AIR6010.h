@@ -5,16 +5,18 @@
 #ifndef LUAT_PARTITION_MEM_AIR6010_H
 #define LUAT_PARTITION_MEM_AIR6010_H
 
-// AIR6010 (2048KB Flash)
+// AIR6010 (1024KB Flash)
 #define LUAT_PARTITION_SECBOOT_ADDR          0x00000000U      // boot 分区偏移
 #define LUAT_PARTITION_SECBOOT_SIZE          0x00010000U      // 64KB
 #define LUAT_PARTITION_FOTA_ADDR             0x00010000U      // ota 分区偏移
-#define LUAT_PARTITION_FOTA_SIZE             0x000C0000U      // 768KB
-#define LUAT_PARTITION_APP_ADDR              0x000D0000U      // app 分区偏移
-#define LUAT_PARTITION_APP_SIZE              0x00110000U      // 1088KB
-#define LUAT_PARTITION_KV_ADDR               0x001E0000U      // data 分区偏移
+#define LUAT_PARTITION_FOTA_SIZE             0x00050000U      // 320KB
+#define LUAT_PARTITION_APP_ADDR              0x00060000U      // app 分区偏移
+#define LUAT_PARTITION_APP_SIZE              0x00080000U      // 512KB
+#define LUAT_PARTITION_KV_ADDR               0x000E0000U      // data 分区偏移
 #define LUAT_PARTITION_KV_SIZE               0x00010000U      // 64KB
-#define LUAT_PARTITION_SYSPARAM_ADDR         0x001FE000U      // sysparam 分区偏移
+#define LUAT_PARTITION_FS_ADDR               0x000F0000U      // fs 分区偏移
+#define LUAT_PARTITION_FS_SIZE               0x0000A000U      // 40KB
+#define LUAT_PARTITION_SYSPARAM_ADDR         0x000FE000U      // sysparam 分区偏移
 #define LUAT_PARTITION_SYSPARAM_SIZE         0x00002000U      // 8KB
 
 // 兼容旧代码的 KB 宏

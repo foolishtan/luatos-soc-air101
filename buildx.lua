@@ -132,8 +132,16 @@ local function parse_csv(filepath)
     return {meta = meta, partitions = partitions, partition_list = partition_list}
 end
 
-function chip()
-    local conf_data = io.readfile("$(projectdir)/app/port/luat_conf_bsp.h")
+function chip(bsp_path, partition_dir)
+    -- BSP 配置文件路径: 优先用调用方传入的 (子项目 conf/luat_conf_bsp.h),
+    -- 否则 fallback 到旧位置 $(projectdir)/app/port/luat_conf_bsp.h 以保持兼容
+    if not bsp_path or bsp_path == "" then
+        bsp_path = "$(projectdir)/app/port/luat_conf_bsp.h"
+    end
+    local conf_data = io.readfile(bsp_path)
+    if not conf_data then
+        raise("无法读取 BSP 配置文件: " .. bsp_path)
+    end
 
     -- 从 luat_conf_bsp.h 读取BSP版本
     AIR10X_VERSION = conf_data:match("#define LUAT_BSP_VERSION \"(%w+)\"")
@@ -148,22 +156,31 @@ function chip()
     local TLS_CONF = conf_data:find("\r#define LUAT_USE_TLS") or conf_data:find("\n#define LUAT_USE_TLS")
 
     -- 识别芯片型号
+    -- 注意: AIR6010 必须在 AIR601 之前识别, 否则 "#define AIR601" 会误匹配 AIR6010
     local is_air101 = conf_data:find("\r#define AIR101") or conf_data:find("\n#define AIR101")
     local is_air103 = conf_data:find("\r#define AIR103") or conf_data:find("\n#define AIR103")
-    local is_air601 = conf_data:find("\r#define AIR601") or conf_data:find("\n#define AIR601")
+    local is_air6010 = conf_data:find("\r#define AIR6010") or conf_data:find("\n#define AIR6010")
+    local is_air601 = (conf_data:find("\r#define AIR601") or conf_data:find("\n#define AIR601"))
+                      and not is_air6010
     local is_air690 = conf_data:find("\r#define AIR690") or conf_data:find("\n#define AIR690")
     local is_air6208 = conf_data:find("\r#define AIR6208") or conf_data:find("\n#define AIR6208")
 
     local TARGET_NAME
     if is_air101 then TARGET_NAME = "AIR101"
     elseif is_air103 then TARGET_NAME = "AIR103"
+    elseif is_air6010 then TARGET_NAME = "AIR6010"
     elseif is_air601 then TARGET_NAME = "AIR601"
     elseif is_air690 then TARGET_NAME = "AIR690"
     elseif is_air6208 then TARGET_NAME = "AIR6208"
-    else raise("未识别的芯片型号, 请在 luat_conf_bsp.h 中定义 AIR101/AIR103/AIR601/AIR690/AIR6208") end
+    else raise("未识别的芯片型号, 请在 luat_conf_bsp.h 中定义 AIR101/AIR103/AIR601/AIR6010/AIR690/AIR6208") end
 
     -- 加载对应型号的分区表CSV
-    local csv_path = "$(projectdir)/partition/" .. TARGET_NAME .. ".csv"
+    -- 优先用调用方传入的 partition_dir (用于子项目 standalone 编译),
+    -- 否则 fallback 到 $(projectdir)/partition/
+    if not partition_dir or partition_dir == "" then
+        partition_dir = "$(projectdir)/partition"
+    end
+    local csv_path = partition_dir .. "/" .. TARGET_NAME .. ".csv"
     local pt = parse_csv(csv_path)
     local meta = pt.meta
     local partitions = pt.partitions
@@ -213,6 +230,7 @@ function chip()
     result.is_air101 = is_air101
     result.is_air103 = is_air103
     result.is_air601 = is_air601
+    result.is_air6010 = is_air6010
     result.is_air690 = is_air690
     result.is_air6208 = is_air6208
     result.use_lvgl = LVGL_CONF
@@ -258,7 +276,20 @@ function chip()
     table.insert(header_lines, string.format("#endif /* LUAT_PARTITION_MEM_%s_H */", TARGET_NAME))
 
     local header_content = table.concat(header_lines, "\n") .. "\n"
-    local header_path = "$(projectdir)/app/port/partition_mem_" .. TARGET_NAME .. ".h"
+    -- 生成到 bsp_path 同目录, 让 spislave 的 conf/ 也能放自己的 partition_mem_AIR6010.h
+    -- 同时兼容旧的 app/port/ 位置
+    local header_path
+    if bsp_path:find("app/port/luat_conf_bsp.h") then
+        header_path = "$(projectdir)/app/port/partition_mem_" .. TARGET_NAME .. ".h"
+    else
+        -- spislave: 与 bsp_path 同目录
+        -- 用 path.directory 替代手工匹配, 兼容 Windows/Unix 路径分隔符
+        local dir = path.directory(bsp_path)
+        if not dir or dir == "" then
+            raise("无法解析 bsp_path 目录: " .. bsp_path)
+        end
+        header_path = dir .. "/" .. "partition_mem_" .. TARGET_NAME .. ".h"
+    end
     
     existing_content = nil
     if os.exists(header_path) then

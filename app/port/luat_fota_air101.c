@@ -43,13 +43,16 @@ static uint32_t fota_head_check;
 static uint8_t* fota_buffer;  // 动态分配
 static uint32_t fota_buffer_len;
 
-// 用于脚本解压的变量和函数
+// 用于脚本解压的变量和函数 (AIR6010 无 script 分区, 跳过)
+#if !defined(AIR6010)
 static IMAGE_HEADER_PARAM_ST tmphead;
 static uint32_t head_fill_count = 0;
 static uint32_t image_skip_remain = 0;
 extern uint32_t luadb_addr;
+#endif
 
 // 解压回调函数 - 处理解压后的数据，识别脚本区并写入
+#if !defined(AIR6010)
 static int ota_gzcb(const void *pBuf, int len, void *pUser) {
     const char* tmp = pBuf;
 next:
@@ -107,6 +110,7 @@ next:
     }
     return 1;
 }
+#endif // !defined(AIR6010)
 
 // miniz解压函数 - 用于解压GZIP格式的OTA包
 int my_tinfl_decompress_mem_to_callback(const void *pIn_buf, size_t *pIn_buf_size, 
@@ -389,6 +393,17 @@ void luat_fota_boot_check(void) {
     // fs:      0x084B0000 - 0x08800000 (3392K)
     upgrade_img_addr = 0x08010000;  // fota分区起始
     ota_zone_size = 2048 * 1024;    // 2048K
+#elif defined(AIR6010)
+    // AIR6010: 2M Flash, SPI slave 协处理器
+    // 分区表配置 (secboot -> fota -> app -> kv -> sysparam):
+    // secboot: 0x08000000 - 0x08010000 (64K)
+    // fota:    0x08010000 - 0x080D0000 (768K)
+    // app:     0x080D0000 - 0x081E0000 (1088K)
+    // kv:      0x081E0000 - 0x081F0000 (64K)
+    // sysparam:0x081FE000 - 0x08200000 (8K)
+    // 注: AIR6010 无 script/fs 分区
+    upgrade_img_addr = 0x08010000;  // fota分区起始
+    ota_zone_size = 768 * 1024;     // 768K
 #else
     // 2MB Flash (AIR101/AIR690)
     upgrade_img_addr = secimg->upgrade_img_addr;
@@ -479,21 +494,23 @@ static void check_ota_zone(void) {
     }
     
     // 检查OTA包类型，如果是全量升级包(类型1)，需要解压并升级脚本区
+    // AIR6010 没有 script 分区, 跳过脚本解压
+#if !defined(AIR6010)
     if (imghead->img_attr.b.img_type == 1) {
         LLOGI("检测到全量升级包，开始解压并升级脚本区...");
-        
+
         // 重置解压状态变量
         head_fill_count = 0;
         image_skip_remain = 0;
         memset(&tmphead, 0, sizeof(tmphead));
-        
+
         // 解压OTA数据并通过回调写入脚本区
         size_t inSize = imghead->img_len;
         uint8_t *ptr = (uint8_t *)upgrade_img_addr + sizeof(IMAGE_HEADER_PARAM_ST) + 10; // 跳过GZ的前10个字节
-        
+
         int ret = my_tinfl_decompress_mem_to_callback(ptr, &inSize, ota_gzcb, NULL, 0);
         LLOGD("OTA解压函数返回值: %d", ret);
-        
+
         if (ret) {
             LLOGI("脚本区升级完成");
         } else {
@@ -502,6 +519,10 @@ static void check_ota_zone(void) {
     } else if (imghead->img_attr.b.img_type == 2) {
         LLOGI("检测到仅脚本升级包，将在重启后处理");
     }
+#else
+    // AIR6010: 仅 app 升级, 跳过所有脚本区相关处理
+    (void)imghead;
+#endif
     
     // 清理OTA区域
     LLOGI("清理OTA区域...");

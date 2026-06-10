@@ -223,6 +223,7 @@ target("network")
     set_kind("static")
     set_plat("cross")
     set_arch("c-sky")
+    add_includedirs(path.join(SCRIPT_DIR, "conf"))  -- spislave conf BEFORE app/port for airlink macros
     add_includedirs(path.join(ROOT, "app/port"))
     add_includedirs(path.join(ROOT, "include"))
     add_includedirs(luatos.."luat/include", {public = true})
