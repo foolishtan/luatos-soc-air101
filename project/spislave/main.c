@@ -14,6 +14,7 @@
 #include "luat_fota.h"
 #include "luat_airlink.h"
 #include "luat_netdrv.h"
+#include "luat_uart.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -48,6 +49,48 @@ void luat_fs_update_addr(void) {
 
 // GPIO IRQ 默认回调 stub (spislave 无 lua vm, 不需要 lua dispatch)
 int luat_gpio_irq_default(int pin, void* args) {
+    return 0;
+}
+
+// YHM27xx GPIO driver stub (AIR6010 无此芯片)
+int luat_gpio_driver_yhm27xx(uint32_t pin, uint8_t chip_id, uint8_t reg, uint8_t is_read, uint8_t *data) {
+    (void)pin; (void)chip_id; (void)reg; (void)is_read; (void)data;
+    return -1;
+}
+
+// PM IO 电压控制 stub (AIR6010 不支持, airlink spi slave 需要此符号)
+int luat_pm_iovolt_ctrl(int id, int val) {
+    (void)id; (void)val;
+    return 0;
+}
+
+// GPIO mode stub (AIR6010 不需要, luat_uart_setup 调用)
+void luat_gpio_mode(int pin, int mode, int pull, int initOutput) {
+    (void)pin; (void)mode; (void)pull; (void)initOutput;
+}
+
+// === LWIP adapter stubs (spislave 走 airlink, 不需要标准 lwip socket/dhcp/dns) ===
+struct netif;  // forward decl
+void net_lwip2_set_link_state(uint8_t adapter_index, uint8_t updown) {
+    (void)adapter_index; (void)updown;
+}
+void net_lwip2_register_adapter(uint8_t adapter_index) {
+    (void)adapter_index;
+}
+void net_lwip2_set_netif(uint8_t adapter_index, struct netif *netif) {
+    (void)adapter_index; (void)netif;
+}
+// === ULWIP stubs ===
+void ulwip_dhcp_client_start(ulwip_ctx_t *ctx) {
+    (void)ctx;
+}
+void ulwip_dhcp_client_stop(ulwip_ctx_t *ctx) {
+    (void)ctx;
+}
+
+// UART ctrl stub (airlink uart task 需要)
+int luat_uart_ctrl(int uart_id, LUAT_UART_CTRL_CMD_E cmd, void* param) {
+    (void)uart_id; (void)cmd; (void)param;
     return 0;
 }
 
@@ -91,6 +134,9 @@ void UserMain(void) {
     LLOGD("[+UART] airlink_start UART...");
     ret = luat_airlink_start(LUAT_AIRLINK_MODE_UART);
     LLOGD("[+UART] airlink_start UART ret=%d", ret);
+    LLOGD("[+TASK] airlink_task_start...");
+    luat_airlink_task_start();
+    LLOGD("[+TASK] airlink_task_start done");
 #endif
 
     LLOGI("=== boot done, entering idle ===");

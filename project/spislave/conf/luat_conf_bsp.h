@@ -38,16 +38,16 @@
 // airlink 通信通道: SPI slave + UART
 //------------------------------------------------------
 #define LUAT_USE_AIRLINK 1
-#define LUAT_USE_AIRLINK_SPI_SLAVE 1
+// #define LUAT_USE_AIRLINK_SPI_SLAVE 1   // SPI slave 暂缓, 先跑通 UART
 #define LUAT_USE_AIRLINK_EXEC_GPIO 1
 #define LUAT_USE_AIRLINK_EXEC_UART 1
 // #define LUAT_USE_AIRLINK_EXEC_SDATA 1
 #define LUAT_USE_AIRLINK_EXEC_PM 1
-#define LUAT_USE_AIRLINK_EXEC_WLAN 1
+#define LUAT_USE_AIRLINK_EXEC_WIFI 1   // airlink 代码检查的宏名是 _WIFI 不是 _WLAN
 #define LUAT_USE_AIRLINK_EXEC_FOTA 1
 #define LUAT_USE_AIRLINK_EXEC_PING 1
 #define LUAT_CONF_AIRLINK_SLAVE_AUTOSTART 1
-#define LUAT_USE_AIRLINK_SPI_SLAVE 1
+// #define LUAT_USE_AIRLINK_SPI_SLAVE 1   // SPI slave 暂缓, 先跑通 UART
 #define LUAT_USE_AIRLINK_UART 1
 
 

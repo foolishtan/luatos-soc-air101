@@ -53,16 +53,18 @@ set_toolchains("csky@csky")
 
 local flto = ""
 
--- 基础宏 (注意: 不定义 __LUATOS__, 这是与 luatos build 的核心区别)
-add_defines("GCC_COMPILE=1", "TLS_CONFIG_CPU_XT804=1", "NIMBLE_FTR=1", "__USER_CODE__", 'MBEDTLS_CONFIG_FILE="mbedtls_config_air101.h"')
+-- 基础宏 (定义 __LUATOS__ 以激活 luat_base.h → lua.h → luaconf.h → luat_conf_bsp.h 的 include 链)
+add_defines("GCC_COMPILE=1", "TLS_CONFIG_CPU_XT804=1", "NIMBLE_FTR=1", "__USER_CODE__", "__LUATOS__", 'MBEDTLS_CONFIG_FILE="mbedtls_config_air101.h"')
 
 set_warnings("allextra")
 set_optimize("smallest")
 set_languages("c99")
 
 add_asflags(flto .. "-DTLS_CONFIG_CPU_XT804=1 -DGCC_COMPILE=1 -mcpu=ck804ef -std=gnu99 -c -mhard-float -fdata-sections -ffunction-sections")
-add_cflags(flto .. "-DTLS_CONFIG_CPU_XT804=1 -DGCC_COMPILE=1 -mcpu=ck804ef -std=gnu99 -c -mhard-float -Wall -fdata-sections -ffunction-sections")
+set_policy("check.auto_ignore_flags", false)
+add_cflags(flto .. "-include " .. path.join(SCRIPT_DIR, "conf\\luat_conf_bsp.h") .. " -DTLS_CONFIG_CPU_XT804=1 -DGCC_COMPILE=1 -mcpu=ck804ef -std=gnu99 -c -mhard-float -Wall -fdata-sections -ffunction-sections")
 add_cxflags(flto .. "-DTLS_CONFIG_CPU_XT804=1 -DGCC_COMPILE=1 -mcpu=ck804ef -std=gnu99 -c -mhard-float -Wall -fdata-sections -ffunction-sections")
+
 
 add_cxflags("-Werror=unused-value")
 add_cxflags("-Werror=array-bounds")
@@ -89,7 +91,11 @@ set_policy("build.across_targets_in_parallel", false)
 -- 公共 include 路径 (相对 ROOT)
 -- 因为 add_includedirs(ROOT, {public=true}) 已在文件顶部调用,
 -- 此处写 "app/port" 即可, xmake 会从 ROOT 开始查找
+--
+-- ★ spislave conf 必须放在 app/port 前面, 否则 #include "luat_conf_bsp.h"
+--   会先找到 app/port/luat_conf_bsp.h (默认 AIR6208, airlink 宏全注释掉)
 -- ============================================================================
+add_includedirs(path.join(SCRIPT_DIR, "conf"), {public = true})
 add_includedirs(path.join(ROOT, "app/port"), {public = true})
 add_includedirs(path.join(ROOT, "include"), {public = true})
 add_includedirs(path.join(ROOT, "include/app"), {public = true})
@@ -117,7 +123,7 @@ add_includedirs(luatos.."components/miniz")
 add_includedirs(luatos.."components/serialization/protobuf")
 add_includedirs(luatos.."components/nanopb/include", {public = true})
 add_includedirs(luatos.."components/soc_service/include", {public = true})
-add_includedirs(luatos.."components/hmeta/include", {public = true})
+add_includedirs(luatos.."components/hmeta", {public = true})
 add_includedirs(luatos.."components/network/adapter", {public = true})
 add_includedirs(luatos.."components/network/adapter_lwip2", {public = true})
 add_includedirs(luatos.."components/network/netdrv/include", {public = true})
@@ -219,7 +225,7 @@ target_end()
 -- ============================================================================
 -- 静态库: network (lwip + netdrv + ulwip + airlink + soc_service)
 -- ============================================================================
-target("network")
+target("network_spislave")
     set_kind("static")
     set_plat("cross")
     set_arch("c-sky")
@@ -236,18 +242,22 @@ target("network")
 
     add_includedirs(luatos.."components/network/adapter", {public = true})
     add_files(luatos.."components/network/adapter/*.c")
+    remove_files(luatos.."components/network/adapter/luat_lib_socket.c")
+    remove_files(luatos.."components/network/adapter/luat_net_adapter.c")
     add_includedirs(luatos.."components/network/adapter_lwip2", {public = true})
-    add_files(luatos.."components/network/adapter_lwip2/*.c")
 
     add_includedirs(luatos.."components/network/netdrv/include", {public = true})
     add_files(luatos.."components/network/netdrv/**.c")
 
+    add_includedirs(luatos.."components/hmeta", {public = true})
+    add_includedirs(luatos.."components/bluetooth/include", {public = true})
+    add_includedirs(luatos.."components/ethernet/common", {public = true})
     add_includedirs(luatos.."components/airlink/include", {public = true})
     add_files(luatos.."components/airlink/**.c")
+    remove_files(luatos.."components/airlink/binding/*.c")
     add_files(luatos.."components/airlink/src/task/*.c")
 
     add_includedirs(luatos.."components/network/ulwip/include", {public = true})
-    add_files(luatos.."components/network/ulwip/**.c")
 
     add_includedirs(luatos.."components/soc_service/include", {public = true})
     add_files(luatos.."components/soc_service/**.c")
@@ -323,7 +333,7 @@ target("hmeta")
     add_includedirs(path.join(ROOT, "app/port"), {public = true})
     add_includedirs(path.join(ROOT, "include"), {public = true})
     add_includedirs(luatos.."luat/include", {public = true})
-    add_includedirs(luatos.."components/hmeta/include", {public = true})
+    add_includedirs(luatos.."components/hmeta", {public = true})
 target_end()
 
 -- ============================================================================
@@ -371,7 +381,7 @@ target("air6010_spislave")
             {force = true})
     end)
 
-    add_deps("app", "freertos", "lua", "mbedtls", "miniz", "network", "common", "vfs", "lfs", "fskv", "hmeta")
+    add_deps("app", "freertos", "lua", "mbedtls", "miniz", "network_spislave", "common", "vfs", "lfs", "fskv", "hmeta")
 
     -- spislave 入口
     add_files("main.c")
@@ -397,6 +407,7 @@ target("air6010_spislave")
     remove_files(path.join(ROOT, "app/port/luat_nimble_air101.c"))
     remove_files(path.join(ROOT, "app/port/luat_sdio_air101.c"))
     remove_files(path.join(ROOT, "app/port/luat_sfd_onchip_air101.c"))
+    remove_files(path.join(ROOT, "app/port/luat_wlan_raw_air101.c"))
     remove_files(path.join(ROOT, "app/port/luat_shell_air101.c"))
     remove_files(path.join(ROOT, "app/port/luat_ota_air101.c"))
     remove_files(path.join(ROOT, "app/port/luat_touchkey_air101.c"))

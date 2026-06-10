@@ -19,6 +19,10 @@
 
 static int inited;
 
+// SPI slave transfer state (for luat_spi_slave_transfer API)
+static char *s_slave_rx_buf = NULL;
+static size_t s_slave_rx_len = 0;
+static size_t s_slave_rx_total = 0;
 
 static s16 hsp_rx_cmd_cb(char *buf) {
     // printf("hsp_rx_cmd_cb %p %d\n", buf, buf[0]);
@@ -27,6 +31,13 @@ static s16 hsp_rx_cmd_cb(char *buf) {
 }
 static s16 hsp_rx_data_cb(char *buf) {
     // printf("hsp_rx_data_cb %p %d %d\n", buf, buf[0], buf[1]);
+    if (s_slave_rx_buf && s_slave_rx_len < s_slave_rx_total) {
+        // HSPI 接收到数据, 拷贝到 transfer buffer
+        // buf 指向 HSPI 内部接收 buffer, 大小由 transfer 参数决定
+        size_t copy_len = s_slave_rx_total;
+        memcpy(s_slave_rx_buf, buf, copy_len);
+        s_slave_rx_len = copy_len;
+    }
     l_spi_slave_event(0, 1, buf, 1500);
     return WM_SUCCESS;
 }
@@ -86,5 +97,35 @@ int luat_spi_slave_write(luat_spi_slave_conf_t *conf, uint8_t* buf, size_t len) 
 int tls_hspi_writable(void);
 int luat_spi_slave_writable(luat_spi_slave_conf_t *conf) {
     return tls_hspi_writable();
+}
+
+// ---- luat_spi_slave_transfer API (airlink spi slave task 使用) ----
+
+int luat_spi_slave_transfer(int spi_id, const char* send_buf, char* recv_buf, size_t total_length) {
+    (void)spi_id;
+    s_slave_rx_buf = recv_buf;
+    s_slave_rx_len = 0;
+    s_slave_rx_total = total_length;
+    // 填充 TX 数据到 HSPI FIFO (主机会读取)
+    if (send_buf && total_length > 0) {
+        tls_hspi_tx_data((char*)send_buf, total_length);
+    }
+    return 0;
+}
+
+int luat_spi_slave_transfer_pause_and_read_data(int spi_id) {
+    (void)spi_id;
+    int len = s_slave_rx_len;
+    s_slave_rx_len = 0;
+    s_slave_rx_buf = NULL;
+    return len;
+}
+
+int luat_spi_slave_transfer_stop(int spi_id) {
+    (void)spi_id;
+    s_slave_rx_buf = NULL;
+    s_slave_rx_len = 0;
+    s_slave_rx_total = 0;
+    return 0;
 }
 
