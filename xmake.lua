@@ -901,3 +901,86 @@ target("air10x")
     end)
 target_end()
 
+
+-- Custom task: generate function dependency tree HTML from linker map file
+task("maptree")
+    set_menu {
+        usage = "xmake maptree [options]",
+        description = "Generate function dependency tree HTML from linker map file",
+        options = {
+            {nil, "map", "kv", nil, "Path to .map file (auto-detect if omitted)"},
+            {nil, "entry", "kv", nil, "Entry function(s), comma-separated (default: UserMain,luat_main)"},
+            {nil, "all-roots", "k", nil, "Use all uncalled functions as roots"},
+        }
+    }
+    on_run(function ()
+        import("core.base.option")
+        import("core.project.config")
+
+        -- Resolve map file
+        local map_file = option.get("map")
+        if not map_file then
+            -- Auto-detect from build output
+            local out_dir = "$(builddir)/out"
+            local maps = os.files(path.join(out_dir, "*.map"))
+            if #maps == 0 then
+                out_dir = path.absolute("$(builddir)/out")
+                maps = os.files(path.join(out_dir, "*.map"))
+            end
+            if #maps > 0 then
+                map_file = maps[1]
+                print("Auto-detected map file: " .. map_file)
+            else
+                raise("No .map file found in build/out/. Run xmake build first, or specify --map")
+            end
+        end
+
+        -- Resolve Python
+        local maptool_dir = "$(projectdir)/tools/maptool"
+        local python = nil
+        if is_host("windows") then
+            python = path.join(maptool_dir, ".venv/Scripts/python.exe")
+            if not os.isfile(python) then
+                python = "python"
+            end
+        else
+            python = path.join(maptool_dir, ".venv/bin/python")
+            if not os.isfile(python) then
+                python = "python3"
+            end
+        end
+
+        local output_dir = path.join(maptool_dir, "output")
+        os.mkdir(output_dir)
+        local target_name = path.basename(map_file):gsub("%.map$", "")
+        local output_file = path.join(output_dir, target_name .. "_tree.html")
+
+        local cmd_args = {
+            python,
+            "-m", "maptool.cli",
+            "--map", map_file,
+            "--output", output_file,
+            "--title", string.format("%s Function Dependency Tree", target_name),
+        }
+
+        local entries = option.get("entry")
+        if entries then
+            table.insert(cmd_args, "--entry")
+            table.insert(cmd_args, entries)
+        end
+
+        if option.get("all-roots") then
+            table.insert(cmd_args, "--all-roots")
+        end
+
+        local old_pythonpath = os.getenv("PYTHONPATH")
+        os.setenv("PYTHONPATH", maptool_dir)
+        os.execv(cmd_args[1], cmd_args, {curdir = maptool_dir})
+        if old_pythonpath then
+            os.setenv("PYTHONPATH", old_pythonpath)
+        end
+
+        print("")
+        print("Generated: " .. output_file)
+        print("Open this file in your browser to explore the function dependency tree.")
+    end)
