@@ -1,0 +1,20 @@
+# Partition Table: AIR6010 (2MB Flash, SPI slave 协处理器)
+# flash_base = 0x08000000
+# flash_size = 2048K
+# ram_end = 0x20028000
+#
+# 布局:
+#   secboot    0x000000   64K
+#   fota       0x010000   768K     (升级区, 远大于实际 app 1216K, 留足余量)
+#   app        0x0D0000   1088K    (代码 + 1K image header)
+#   kv         0x1E0000   64K      (airlink 配置 FSKV)
+#   <unused>   0x1F0000   40K      (未使用, 留给将来扩展)
+#   <reserved> 0x1FA000   16K      (buildx 强制保留区前半段, 不允许分区占用)
+#   sysparam   0x1FE000   8K       (必须位于 flash 末尾 8K)
+#
+# Name,        Type,       Offset,       Size
+secboot,       boot,       0x000000,     64K
+fota,          ota,        0x010000,     768K
+app,           app,        0x0D0000,     1088K
+kv,            data,       0x1E0000,     64K
+sysparam,      sysparam,   0x1FE000,     8K
