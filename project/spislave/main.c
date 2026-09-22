@@ -69,24 +69,7 @@ void luat_gpio_mode(int pin, int mode, int pull, int initOutput) {
     (void)pin; (void)mode; (void)pull; (void)initOutput;
 }
 
-// === LWIP adapter stubs (spislave 走 airlink, 不需要标准 lwip socket/dhcp/dns) ===
-struct netif;  // forward decl
-void net_lwip2_set_link_state(uint8_t adapter_index, uint8_t updown) {
-    (void)adapter_index; (void)updown;
-}
-void net_lwip2_register_adapter(uint8_t adapter_index) {
-    (void)adapter_index;
-}
-void net_lwip2_set_netif(uint8_t adapter_index, struct netif *netif) {
-    (void)adapter_index; (void)netif;
-}
-// === ULWIP stubs ===
-void ulwip_dhcp_client_start(ulwip_ctx_t *ctx) {
-    (void)ctx;
-}
-void ulwip_dhcp_client_stop(ulwip_ctx_t *ctx) {
-    (void)ctx;
-}
+// === LWIP adapter stubs 已移除: lwip22/net_lwip2 现在由 network_spislave 提供真实实现 ===
 
 // UART ctrl stub (airlink uart task 需要)
 int luat_uart_ctrl(int uart_id, LUAT_UART_CTRL_CMD_E cmd, void* param) {

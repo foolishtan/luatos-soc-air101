@@ -66,6 +66,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+/* vendor libc 扩展: app/port/luat_base_air101.c 提供实现, LuatOS libhttp/libftp 等依赖. */
+extern int strncasecmp(const char *s1, const char *s2, size_t len);
+extern int strcasecmp(const char *s1, const char *s2);
 #include "wm_type_def.h"
 #include "wm_uart.h"
 #include "wm_gpio.h"

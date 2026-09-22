@@ -2,6 +2,13 @@
 #ifndef LUAT_CONF_BSP
 #define LUAT_CONF_BSP
 
+#include <stddef.h>
+/* vendor libc 扩展声明: 实现在 app/port/luat_base_air101.c */
+extern int strncasecmp(const char *s1, const char *s2, size_t len);
+extern int strcasecmp(const char *s1, const char *s2);
+
+/* hmeta stub 在 app/port/luat_base_air101.c 提供 weak 实现 */
+
 #define LUAT_BSP_VERSION "V2001"
 
 //------------------------------------------------------
@@ -151,6 +158,9 @@
 #define LUAT_USE_NETDRV 1
 #define LUAT_USE_NETDRV_NAPT 1
 #define LUAT_USE_NETDRV_CH390H 1
+// netdrv IPv6 能力(netdrv.ipv6 / 链路本地地址自动生成 / IPv6 就绪判定)
+// 按 LuatOS 惯例: 定义即启用, 注释掉即关闭
+#define LUAT_USE_NETDRV_IPV6 1
 
 //---------------------
 // UI

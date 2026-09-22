@@ -24,8 +24,6 @@
 #include "wm_sockets.h"
 #include "wm_include.h"
 #if TLS_CONFIG_AP
-#include "wm_dhcp_server.h"
-#include "wm_dns_server.h"
 #include "wm_cpu.h"
 #endif
 #include "wm_wl_task.h"
@@ -145,16 +143,6 @@ static void sys_net2_up()
     MEMCPY((char*)ip_2_ip4(&gateway), &ip_param.gateway, 4);
     tls_netif2_set_addr(&ip_addr, &net_mask, &gateway);
 
-    if (ip_param.dhcp_enable)
-    {
-        tls_dhcps_start();
-    }
-
-    // if ('\0' != dnsname[0])
-    // {
-    //     tls_dnss_start(dnsname);
-    // }
-
     return ;
 }
 
@@ -162,10 +150,6 @@ static void sys_net2_up()
 
 static void sys_net2_down()
 {
-    //tls_dnss_stop();
-
-    tls_dhcps_stop();
-
     tls_netif2_set_down();
 
     return ;

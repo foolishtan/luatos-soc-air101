@@ -1,8 +1,8 @@
 #include "luat_base.h"
 #include "luat_netdrv.h"
+#include "luat_netdrv_dhcp_client.h"
 #include "luat_network_adapter.h"
 #include "net_lwip2.h"
-#include "luat_ulwip.h"
 
 #include "lwip/netif.h"
 #include "lwip/pbuf.h"
@@ -29,9 +29,6 @@ extern struct netif *nif4apsta;
 
 static luat_netdrv_t g_netdrv_sta;
 static luat_netdrv_t g_netdrv_ap;
-
-// ulwip context for STA DHCP management
-static ulwip_ctx_t g_sta_ulwip_ctx = {0};
 
 // Initialization flags
 static uint8_t g_sta_init_ok = 0;
@@ -99,14 +96,8 @@ static int sta_bootup_cb(luat_netdrv_t* drv, void* userdata) {
     g_netdrv_sta.netif = sta;
     g_netdrv_sta.userdata = sta;
 
-    // Initialize ulwip context for DHCP management
-    memcpy(g_sta_ulwip_ctx.hwaddr, sta->hwaddr, 6);
-    g_sta_ulwip_ctx.netif = sta;
-    g_sta_ulwip_ctx.adapter_index = NW_ADAPTER_INDEX_LWIP_WIFI_STA;
-    g_sta_ulwip_ctx.dhcp_enable = 1;  // Enable DHCP by default
-
-    // Link ulwip context to driver
-    g_netdrv_sta.ulwip = &g_sta_ulwip_ctx;
+    // DHCP is on by default; the netdrv DHCP timer checks drv->dhcp_enable before running
+    g_netdrv_sta.dhcp_enable = 1;
 
     LLOGI("STA netdrv registered, netif=%p", sta);
     g_sta_init_ok = 1;
@@ -148,7 +139,6 @@ static int ap_bootup_cb(luat_netdrv_t* drv, void* userdata) {
 // ============================================================================
 
 static int sta_dhcp(luat_netdrv_t* drv, void* userdata, int enable) {
-    (void)drv;
     (void)userdata;
 
     struct netif *sta = tls_get_netif();
@@ -157,34 +147,19 @@ static int sta_dhcp(luat_netdrv_t* drv, void* userdata, int enable) {
         return -2;
     }
 
-    g_sta_ulwip_ctx.dhcp_enable = enable;
+    // netdrv DHCP timer (dhcp_client_timer_cb) only runs the state machine when
+    // drv->dhcp_enable is set, so we must update it before invoking start/stop.
+    drv->dhcp_enable = (uint8_t)enable;
 
     if (enable && netif_is_up(sta) && netif_is_link_up(sta)) {
-        ulwip_dhcp_client_start(&g_sta_ulwip_ctx);
+        luat_netdrv_dhcp_client_start(drv);
         LLOGD("sta_dhcp: DHCP client started");
     } else {
-        ulwip_dhcp_client_stop(&g_sta_ulwip_ctx);
+        luat_netdrv_dhcp_client_stop(drv);
         LLOGD("sta_dhcp: DHCP client stopped");
     }
 
     return 0;
-}
-
-// ============================================================================
-// DHCP event callback - called when DHCP succeeds or times out
-// ============================================================================
-
-static void sta_dhcp_event_cb(int32_t event, void* ctx) {
-    (void)ctx;
-    extern void net_lwip2_set_link_state(uint8_t adapter_index, uint8_t updown);
-
-    if (event == LUAT_ULWIP_DHCP_EVENT_GOT_IP) {
-        LLOGI("DHCP: Got IP address");
-        // Set link state up for net_lwip2
-        net_lwip2_set_link_state(NW_ADAPTER_INDEX_LWIP_WIFI_STA, 1);
-    } else if (event == LUAT_ULWIP_DHCP_EVENT_TIMEOUT) {
-        LLOGW("DHCP: Timeout, failed to get IP");
-    }
 }
 
 // ============================================================================
@@ -198,20 +173,6 @@ void luat_netdrv_sta_start_dhcp(void) {
         return;
     }
 
-    // Initialize ulwip context if not already done
-    if (g_sta_ulwip_ctx.netif == NULL) {
-        g_sta_ulwip_ctx.netif = sta;
-        g_sta_ulwip_ctx.adapter_index = NW_ADAPTER_INDEX_LWIP_WIFI_STA;
-        memcpy(g_sta_ulwip_ctx.hwaddr, sta->hwaddr, 6);
-        g_netdrv_sta.netif = sta;
-        g_netdrv_sta.userdata = sta;
-
-        // Register with net_lwip2 if not done
-        net_lwip2_set_netif(NW_ADAPTER_INDEX_LWIP_WIFI_STA, sta);
-        net_lwip2_register_adapter(NW_ADAPTER_INDEX_LWIP_WIFI_STA);
-        g_sta_init_ok = 1;
-    }
-
     // Ensure netif is up
     if (!netif_is_up(sta)) {
         netif_set_up(sta);
@@ -220,13 +181,13 @@ void luat_netdrv_sta_start_dhcp(void) {
     // Set link state
     netif_set_link_up(sta);
 
-    // Set up event callback
-    g_sta_ulwip_ctx.event_cb = sta_dhcp_event_cb;
-    g_sta_ulwip_ctx.dhcp_enable = 1;
+    // netdrv framework drives the IP_READY/IP_LOSE events from luat_netdrv_dhcp_client.c;
+    // l_wlan_cb no longer needs an event_cb shim.
+    g_netdrv_sta.dhcp_enable = 1;
 
-    // Start DHCP client
-    LLOGI("Starting ulwip DHCP client, netif=%p", sta);
-    ulwip_dhcp_client_start(&g_sta_ulwip_ctx);
+    // Start DHCP client via netdrv framework
+    LLOGI("Starting netdrv DHCP client, netif=%p", sta);
+    luat_netdrv_dhcp_client_start(&g_netdrv_sta);
 }
 
 // ============================================================================
@@ -278,14 +239,12 @@ void luat_netdrv_register_xt804(void) {
     // Initialize driver instances
     memset(&g_netdrv_sta, 0, sizeof(luat_netdrv_t));
     memset(&g_netdrv_ap, 0, sizeof(luat_netdrv_t));
-    memset(&g_sta_ulwip_ctx, 0, sizeof(ulwip_ctx_t));
 
     // Configure STA driver
     g_netdrv_sta.id = NW_ADAPTER_INDEX_LWIP_WIFI_STA;
     g_netdrv_sta.boot = sta_bootup_cb;
     g_netdrv_sta.dataout = netif_dataout;
     g_netdrv_sta.dhcp = sta_dhcp;
-    g_netdrv_sta.ulwip = &g_sta_ulwip_ctx;
 
     // Configure AP driver (no DHCP client for AP mode)
     g_netdrv_ap.id = NW_ADAPTER_INDEX_LWIP_WIFI_AP;
@@ -334,9 +293,9 @@ void luat_netdrv_sta_set_static_ip(ip_addr_t* ip, ip_addr_t* gateway, ip_addr_t*
     }
 
     // Stop DHCP if running
-    if (g_sta_ulwip_ctx.dhcp_enable) {
-        ulwip_dhcp_client_stop(&g_sta_ulwip_ctx);
-        g_sta_ulwip_ctx.dhcp_enable = 0;
+    if (g_netdrv_sta.dhcp_enable) {
+        luat_netdrv_dhcp_client_stop(&g_netdrv_sta);
+        g_netdrv_sta.dhcp_enable = 0;
     }
 
     // Set static IP

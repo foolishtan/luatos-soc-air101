@@ -83,7 +83,7 @@ static int l_wlan_cb(lua_State*L, void* ptr) {
         lua_call(L, 1, 0);
         break;
     case ONESHOT_RESULT:
-        #ifdef LUAT_USE_NETWORK
+        #if defined(LUAT_USE_NETWORK) && defined(LUAT_USE_ONESHOT)
         lua_pushstring(L, "SC_RESULT");
         tls_wifi_get_oneshot_ssidpwd(ssid, pwd);
         LLOGD("oneshot %s %s", ssid, pwd);
@@ -173,8 +173,8 @@ static void netif_event_cb(u8 status) {
         LLOGI("sta join success");
         luat_msgbus_put(&msg, 0);
         luat_netdrv_t* netdrv = luat_netdrv_get(NW_ADAPTER_INDEX_LWIP_WIFI_STA);
-        if (netdrv && netdrv->ulwip) {
-            if (netdrv->ulwip->dhcp_enable == 0) {
+        if (netdrv) {
+            if (netdrv->dhcp_enable == 0) {
                 LLOGI("dhcp is disable, so 'join success' as 'IP_READY'");
                 net_lwip2_set_link_state(NW_ADAPTER_INDEX_LWIP_WIFI_STA, 1);
                 return;
@@ -403,22 +403,13 @@ extern u8 gucssidData[];
 extern u8 gucpwdData[];
 int luat_wlan_smartconfig_start(int tp) {
     (void)tp;
-    #ifdef LUAT_USE_NETWORK
-    gucssidData[0] = 0;
-    gucpwdData[0] = 0;
-    tls_wifi_oneshot_result_cb_register(luat_sc_callback);
-    return tls_wifi_set_oneshot_flag(1);
-    #else
+    /* oneshotconfig 已被移除, smartconfig API 已不可用 */
     return -1;
-    #endif
 }
 
 int luat_wlan_smartconfig_stop(void) {
-    #ifdef LUAT_USE_NETWORK
-    return tls_wifi_set_oneshot_flag(0);
-    #else
+    /* oneshotconfig 已被移除, smartconfig API 已不可用 */
     return -1;
-    #endif
 }
 
 // 数据类

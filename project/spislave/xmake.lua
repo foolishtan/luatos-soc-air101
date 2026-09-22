@@ -240,14 +240,32 @@ target("network_spislave")
     add_includedirs(path.join(ROOT, "src/app/dnsserver"))
     add_includedirs(path.join(ROOT, "src/app/oneshotconfig"))
 
+    -- lwip22 适配 (与主 target("network") 同步)
+    local lwip22_path = luatos.."components/network/lwip22/"
+    add_includedirs(lwip22_path.."include")
+    add_includedirs(path.join(ROOT, "src/network/lwip22_port"))
+    add_files(path.join(ROOT, "src/network/lwip22_port/*.c"))
+    add_files(lwip22_path.."api/**.c")
+    add_files(lwip22_path.."core/**.c")
+    add_files(lwip22_path.."netif/**.c")
+    remove_files(lwip22_path.."netif/ppp/**.c")
+    add_files(lwip22_path.."port/luat_rtos/luat_rtos_lwip.c")
+    add_includedirs("build/lwipopts_gen")
+
     add_includedirs(luatos.."components/network/adapter", {public = true})
     add_files(luatos.."components/network/adapter/*.c")
     remove_files(luatos.."components/network/adapter/luat_lib_socket.c")
     remove_files(luatos.."components/network/adapter/luat_net_adapter.c")
     add_includedirs(luatos.."components/network/adapter_lwip2", {public = true})
+    add_files(luatos.."components/network/adapter_lwip2/*.c")
 
     add_includedirs(luatos.."components/network/netdrv/include", {public = true})
     add_files(luatos.."components/network/netdrv/**.c")
+    -- air6010 spislave 也无 USB 外挂以太网
+    remove_files(luatos.."components/network/netdrv/src/luat_netdrv_usb_eth.c")
+
+    add_includedirs(luatos.."components/ethernet/common", {public = true})
+    add_files(luatos.."components/ethernet/common/*.c")
 
     add_includedirs(luatos.."components/hmeta", {public = true})
     add_includedirs(luatos.."components/bluetooth/include", {public = true})

@@ -32,7 +32,7 @@
 
 //LWIP CONFIG
 #define TLS_CONFIG_IPV4                 				CFG_ON      //must ON
-#define TLS_CONFIG_IPV6                 				CFG_OFF
+#define TLS_CONFIG_IPV6                 				CFG_ON      // lwip22 + netdrv IPv6: ND6/MLD6/SLAAC enabled
 #define TLS_CONFIG_DHCP_OPTION60						"Air:xt804"
 
 /** SOCKET CONFIG **/

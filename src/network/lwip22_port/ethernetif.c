@@ -1,11 +1,24 @@
 /**
  * @file
- * Ethernet Interface Skeleton
+ * Ethernet Interface Skeleton (lwIP 2.2 + air101 SOC 私有 STA/AP 网卡)
  *
+ * 本文件由 src/network/lwip2.1.3/netif/ethernetif.c 平移到 lwip22，对外
+ * 行为保持一致：
+ *   - STA / AP 双网卡，AP 在 STA 之后挂入 netif 链表（nif->next）
+ *   - tls_wifi_buffer_acquire/release 仍然负责下行/上行 802.11 帧缓冲
+ *   - ethernetif_input 走 netif->input (即 tcpip_input, lwip22 NO_SYS=1
+ *     下退化为同步调用 ethernet_input)
+ *   - low_level_init 注册 MLD6 MAC filter，保留 IPv6 组播链路本地过滤
+ *   - low_level_output 把 pbuf 链 memcpy 进 wifi TX buffer，由 wpa_supplicant
+ *     / hostapd 负责发到 802.11 物理层
+ *
+ * 路径差异：所有 #include "lwip/..." 走 lwip22 的 include/lwip 目录；tls
+ * wifi 私有头路径不变。
  */
 
 /*
  * Copyright (c) 2001-2004 Swedish Institute of Computer Science.
+ * Copyright (c) 2014 Winner Microelectronics Co., Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -33,21 +46,10 @@
  * This file is part of the lwIP TCP/IP stack.
  *
  * Author: Adam Dunkels <adam@sics.se>
- *
- */
-
-/*
- * This file is a skeleton for developing Ethernet network interface
- * drivers for lwIP. Add code to the low_level functions and do a
- * search-and-replace for the word "ethernetif" to replace it with
- * something that better describes your network interface.
  */
 
 #include <string.h>
 #include "lwip/opt.h"
-
-#if 1 /* don't build, this is only a skeleton, see previous comment */
-
 #include "lwip/def.h"
 #include "lwip/mem.h"
 #include "lwip/pbuf.h"
@@ -55,15 +57,17 @@
 #include "lwip/snmp.h"
 #include "lwip/ethip6.h"
 #include "netif/etharp.h"
-#include "netif/ppp/pppoe.h"
-#include "wm_mem.h"
 #include "lwip/igmp.h"
 #include "lwip/mld6.h"
 #include "tls_common.h"
-#if TLS_CONFIG_AP_OPT_FWD
-#include "lwip/tcpip.h"
-#endif
+#include "wm_mem.h"
+#include "wm_params.h"
 #include "stdio.h"
+
+#include "luat_conf_bsp.h"
+#define LUAT_LOG_TAG "ethif"
+#include "luat_log.h"
+
 /* Define those to better describe your network interface. */
 #define IFNAME0 'e'
 #define IFNAME1 'n'
@@ -73,8 +77,6 @@
 
 /** Network link speed */
 #define NET_LINK_SPEED  100000000
-
-#include "luat_conf_bsp.h"
 
 /**
  * Helper struct to hold private data used to operate your ethernet interface.
@@ -131,14 +133,15 @@ low_level_init(struct netif *netif)
 
     /* Maximum transfer unit */
     netif->mtu = NET_MTU;
- 	
-#if  LWIP_IPV6_AUTOCONFIG  	
-		netif_set_ip6_autoconfig_enabled(netif, 1);
+
+#if LWIP_IPV6_AUTOCONFIG
+    netif_set_ip6_autoconfig_enabled(netif, 1);
 #endif
+
     /* device capabilities */
     /* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
     netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP |
-        NETIF_FLAG_IGMP  
+        NETIF_FLAG_IGMP
 #if defined(DHCP_USED)
         | NETIF_FLAG_DHCP
 #endif
@@ -169,13 +172,7 @@ low_level_init(struct netif *netif)
  * @param p the MAC packet to send (e.g. IP packet including MAC addresses and type)
  * @return ERR_OK if the packet could be sent
  *         an err_t value if the packet couldn't be sent
- *
- * @note Returning ERR_MEM here if a DMA queue of your MAC is full can lead to
- *       strange results. You might consider waiting for space in the DMA queue
- *       to become available since the stack doesn't retry to send a packet
- *       dropped because of memory failure (except for the TCP timers).
  */
-
 static err_t low_level_output(struct netif *netif, struct pbuf *p)
 {
 	struct pbuf *q = NULL;
@@ -192,7 +189,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 	//if (p->tot_len > NET_RW_BUFF_SIZE) {
 	//	return ERR_BUF;
 	//}
-	
+
 	for (q = p; q != NULL; q = q->next) {
 		/* Send data from(q->payload, q->len); */
 		MEMCPY(buf + datalen, q->payload, q->len);
@@ -204,12 +201,13 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     u8 mac_dest[6];
     memcpy(mac_source, buf + 6, 6);
     memcpy(mac_dest, buf, 6);
-    printf("OUT %02x:%02x:%02x:%02x:%02x:%02x -> %02x:%02x:%02x:%02x:%02x:%02x %u len %u\n", 
-        mac_source[0], mac_source[1], mac_source[2], mac_source[3], mac_source[4], mac_source[5],  
+    LLOGD("OUT %02x:%02x:%02x:%02x:%02x:%02x -> %02x:%02x:%02x:%02x:%02x:%02x %u len %u",
+        mac_source[0], mac_source[1], mac_source[2], mac_source[3], mac_source[4], mac_source[5],
         mac_dest[0], mac_dest[1], mac_dest[2], mac_dest[3], mac_dest[4], mac_dest[5],
         buf[12], p->tot_len);
     luat_pcap_write_macpkg(buf, datalen);
     #endif
+
 #if TLS_CONFIG_AP
     if (netif != tls_get_netif())
 	    tls_wifi_buffer_release(true, buf);
@@ -244,8 +242,8 @@ static struct pbuf *low_level_input(struct netif *netif, u8 *buf, u32 buf_len)
     u8 mac_dest[6];
     memcpy(mac_source, buf + 6, 6);
     memcpy(mac_dest, buf, 6);
-    printf("IN %02x:%02x:%02x:%02x:%02x:%02x -> %02x:%02x:%02x:%02x:%02x:%02x %u len %u\n", 
-        mac_source[0], mac_source[1], mac_source[2], mac_source[3], mac_source[4], mac_source[5],  
+    LLOGD("IN %02x:%02x:%02x:%02x:%02x:%02x -> %02x:%02x:%02x:%02x:%02x:%02x %u len %u",
+        mac_source[0], mac_source[1], mac_source[2], mac_source[3], mac_source[4], mac_source[5],
         mac_dest[0], mac_dest[1], mac_dest[2], mac_dest[3], mac_dest[4], mac_dest[5],
         buf[12], buf_len);
     luat_pcap_write_macpkg(buf, buf_len);
@@ -253,7 +251,7 @@ static struct pbuf *low_level_input(struct netif *netif, u8 *buf, u32 buf_len)
     /* Obtain the size of the packet and put it into the "len"
      * variable. */
 
-    s_len = buf_len; 
+    s_len = buf_len;
     bufptr = buf;
 
 #if ETH_PAD_SIZE
@@ -313,7 +311,8 @@ int ethernetif_input(const u8 *bssid, u8 *buf, u32 buf_len)
 
 #if TLS_CONFIG_AP
     u8* mac_addr = hostapd_get_mac();
-    if (0 == compare_ether_addr(bssid, mac_addr))
+    /* lwip22 不再提供 compare_ether_addr()，改用 memcmp + 大端序小端序无关判断 */
+    if (memcmp(bssid, mac_addr, ETH_ALEN) == 0)
     {
         netif = netif->next;
 #ifdef __LUATOS__
@@ -329,11 +328,13 @@ int ethernetif_input(const u8 *bssid, u8 *buf, u32 buf_len)
         extern int luat_netdrv_napt_pkg_input(int id, uint8_t* buff, size_t len);
         int napt_ret = luat_netdrv_napt_pkg_input(adapter_id, p->payload, p->tot_len);
         if (napt_ret != 0) {
-            extern int luat_log_log(int level, const char* tag, const char* fmt, ...);
             pbuf_free(p);
             return 0;
         }
 #endif
+        /* lwip22 NO_SYS=1 下 netif->input 是 netif_input()（在 core/netif.c
+         * 定义），它会判断 NETIF_FLAG_ETHARP/ETHERNET 后转发到 ethernet_input
+         * 或 ip_input；这等同于 lwip2.1.3 时代 tcpip_input 的语义。 */
         if (ERR_OK != netif->input(p, netif)) {
             LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
             pbuf_free(p);
@@ -361,11 +362,11 @@ static err_t ethernetif_igmp_mac_filter(struct netif *netif,
 	{
 		return ERR_OK;
 	}
-	LWIP_DEBUGF(IGMP_DEBUG, ("IPaddr: %d.%d.%d.%d\n", ip4_addr1(group), 
+	LWIP_DEBUGF(IGMP_DEBUG, ("IPaddr: %d.%d.%d.%d\n", ip4_addr1(group),
 		ip4_addr2(group),
 		ip4_addr3(group),
 		ip4_addr4(group)));
-	
+
 	//create group mac address:
 	memcpy(m_addr+3, (u8*)&(group->addr)+1, 3);
 	m_addr[3] &= 0x7F; //clear bit24
@@ -376,7 +377,7 @@ static err_t ethernetif_igmp_mac_filter(struct netif *netif,
 			m_addr[3],
 			m_addr[4],
 			m_addr[5]));
-	
+
 	if(action == IGMP_ADD_MAC_FILTER)
 	{
 		ret = tls_hw_set_multicast_key(m_addr);
@@ -409,7 +410,7 @@ err_t
 ethernetif_init(struct netif *netif)
 {
   LWIP_ASSERT("netif != NULL", (netif != NULL));
-    
+
 #if LWIP_NETIF_HOSTNAME
 	/* Initialize interface hostname */
 	netif->hostname = luat_sta_hostname;
@@ -433,11 +434,11 @@ ethernetif_init(struct netif *netif)
   netif->output_ip6 = ethip6_output;
 #endif /* LWIP_IPV6 */
   netif->linkoutput = low_level_output;
-  
-#if TLS_CONFIG_AP_OPT_FWD
-    netif->ipfwd_output = tcpip_output;
-#endif
-#if  LWIP_IGMP
+
+  /* lwip22 已将 TLS_CONFIG_AP_OPT_FWD / vendor IP forward 移除；
+   * NAPT / 转发改由 netdrv 接管（LUAT_USE_NETDRV_NAPT）。 */
+
+#if LWIP_IGMP
 	netif->igmp_mac_filter = ethernetif_igmp_mac_filter;
 #endif
 
@@ -446,5 +447,3 @@ ethernetif_init(struct netif *netif)
 
   return ERR_OK;
 }
-
-#endif /* 0 */

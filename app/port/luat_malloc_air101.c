@@ -2,6 +2,7 @@
 // 这个文件包含 系统heap和lua heap的默认实现
 
 
+#include "luat_conf_bsp.h"
 #include <stdlib.h>
 #include <string.h>//add for memset
 #include "bget.h"

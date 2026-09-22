@@ -308,7 +308,7 @@ static const luaL_Reg loadedlibs[] = {
 #ifdef LUAT_USE_TP
   {"tp",    luaopen_tp},
 #endif
-  {"hmeta", luaopen_hmeta},
+  // hmeta 已移除 (SOC 缺 luat_hmeta_muid 实现)
   // {"opus", luaopen_opus},
   {NULL, NULL}
 };
@@ -436,7 +436,7 @@ void vApplicationTickHook( void ) {
 
 
 //-------------- cjson 需要这个函数
-int  strncasecmp ( const char* s1, const char* s2, size_t len )
+__attribute__((weak)) int  strncasecmp ( const char* s1, const char* s2, size_t len )
 {
 	register unsigned int  x2;
 	register unsigned int  x1;
@@ -471,3 +471,12 @@ void luat_debug_assert(const char *fun_name, unsigned int line_no, const char *f
   while (1){};
 }
 //--------------
+
+// hmeta stub: LuatOS luat_lib_mcu.c extern l_hmeta_muid, 但 SOC 无 luat_hmeta_muid 实现
+// 用 weak 符号, 防止多 TU 重复定义冲突.
+struct lua_State;
+typedef struct lua_State lua_State_typed_hmeta;
+__attribute__((weak)) int l_hmeta_muid(lua_State_typed_hmeta *L) {
+    (void)L;
+    return 0;
+}

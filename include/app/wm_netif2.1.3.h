@@ -92,8 +92,17 @@ struct tls_ethif {
 #endif
 };
 
+#include "../list.h"
+
 //type defination of netif status changed callback.
 typedef void (*tls_netif_status_event_fn)(u8 status);
+
+/* netif status event node (lwip2.1.3 ethernet.h 移植) */
+struct tls_netif_status_event
+{
+    struct dl_list list;
+    tls_netif_status_event_fn status_callback;
+};
 
 /**
  * @defgroup APP_APIs APP APIs
@@ -158,7 +167,11 @@ void tls_netif_set_status(u8 status);
  * @retval         0     success
  * @retval         Minus failed
  *
- * @note           None
+ * @note           **@deprecated** lwip22 + netdrv 迁移后 DHCP client 由
+ *                 components/network/netdrv/luat_netdrv_dhcp_client.c 接
+ *                 管，调用方应改为 luat_netdrv_dhcp_client_start()。本符
+ *                 号保留以维持 vendor wm_ethernet.c 的链接兼容，函数体已
+ *                 置空，调用不会有副作用也不会启动 DHCP。
  */
 err_t tls_dhcp_start(void);
 
@@ -170,7 +183,8 @@ err_t tls_dhcp_start(void);
  * @retval         0     success
  * @retval         Minus failed
  *
- * @note           None
+ * @note           **@deprecated** 同 tls_dhcp_start()，DHCP client 控制已
+ *                 迁移到 netdrv；本符号保留，函数体置空。
  */
 err_t tls_dhcp_stop(void);
 
@@ -266,75 +280,6 @@ err_t tls_netif_remove_status_event(tls_netif_status_event_fn event_fn);
  */ 
 struct netif *tls_get_netif(void);
 
-#if TLS_CONFIG_AP
-/**
- * @brief          Start DHCP Server for a network interface
- * *
- * @retval         DHCPS_ERR_SUCCESS - No error
- * @retval         DHCPS_ERR_MEM - Out of memory
- * @retval         DHCPS_ERR_LINKDOWN - The NI is inactive
- *
- * @note           None
- */
-INT8S tls_dhcps_start(void);
-
-/**
- * @brief          This function is used to stop DHCP Server
- *
- * @param[in]      None
- *
- * @retval         None
- *
- * @note           None
- */
-void tls_dhcps_stop(void);
-
-/**
- * @brief          Start the dns server's service
- * *
- * @retval         DHCPS_ERR_SUCCESS - No error
- * @retval         DHCPS_ERR_MEM - Out of memory
- * @retval         DHCPS_ERR_LINKDOWN - The NI is inactive
- * @retval		   DNSS_ERR_PARAM - Input parameter error
- *
- * @note           None
- */
-INT8S tls_dnss_start(INT8U * DnsName);
-
-/**
- * @brief          Stop the dns server's service
- *
- * @param[in]      None
- *
- * @retval         None
- *
- * @note           None
- */
-void tls_dnss_stop(void);
-
-/**
- * @brief          Get station's ip address by mac address
- *
- * @param[in]      mac    station's mac address
- *
- * @retval         ip_addr   station's ip address
- *
- * @note           None
- */
-ip_addr_t *tls_dhcps_getip(const u8_t *mac);
-
-/**
- * @brief          Get station's mac address by ip address
- *
- * @param[in]      ip    station's ip address
- *
- * @retval         u8*   station's mac address
- *
- * @note           None
- */
-u8 *tls_dhcps_getmac(const ip_addr_t *ip);
-#endif //TLS_CONFIG_AP
-
 #if TLS_CONFIG_RMMS
 /**
  * @brief          Start remote manager server.
@@ -402,28 +347,6 @@ err_t tls_netif2_set_down(void);
 err_t tls_netif2_set_addr(ip_addr_t *ipaddr,
                           ip_addr_t *netmask,
                           ip_addr_t *gw);
-/*************************************************************************** 
-* Function: tls_dhcps_setdns
-* Description: Set dhcp server's dns address.
-* 
-* Input:  numdns:     the index of the DNS server to set must be less than DNS_MAX_SERVERS
-* 
-* Output: None
-* 
-* Return: None
-* 
-* Date : 2015-3-10
-****************************************************************************/
-/**
- * @brief          Set dhcp server's dns address
- *
- * @param[in]      numdns the index of the DNS server to set must be less than DNS_MAX_SERVERS
- *
- * @retval         None
- *
- * @note           Can only be used at APSTA mode
- */
-void tls_dhcps_setdns(u8_t numdns);
 #endif
 
 /**
